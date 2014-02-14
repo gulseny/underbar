@@ -436,15 +436,23 @@ describe('once', function() {
 });
 
 describe('memoize', function() {
-  var fib, fastFib;
+  var fib, fastFib, timeCheck, fastTime, wait;
 
   beforeEach(function() {
     fib = function(n) {
       if(n < 2){ return n; }
       return fib(n - 1) + fib(n - 2);
     };
-
     fastFib = _.memoize(fib);
+
+    timeCheck = function(str) { return str + Date.now(); };
+    fastTime = _.memoize(timeCheck);
+
+    // Synchronous sleep: terrible for web development, awesome for testing _.memoize
+    wait = function(t) {
+      var start = Date.now();
+      while ((Date.now() - start) < t){}
+    };
   });
 
   it('a memoized function should produce the same result when called with the same arguments', function() {
@@ -456,6 +464,15 @@ describe('memoize', function() {
     expect(fib(10)).to.equal(55);
     expect(fastFib(10)).to.equal(55);
     expect(fastFib(7)).to.equal(13);
+  });
+
+  it('should not run the function twice for the same given argument', function() {
+    var firstTime = timeCheck('shazaam!');
+    wait(5);
+    var secondTime = fastTime('shazaam!');
+    wait(5);
+    expect(firstTime).to.not.equal(secondTime);
+    expect(fastTime('shazaam!')).to.equal(secondTime);
   });
 });
 
@@ -594,63 +611,4 @@ describe('difference', function() {
 
     expect(result).to.eql([3, 4]);
   });
-});
-
-describe("throttle", function() {
-  it('throttled functions should only be able to be called again after the specified time', function(done) {
-    var counter = 0;
-    var incr = function() {
-      counter++;
-    };
-    var throttledIncr = _.throttle(incr, 32);
-    throttledIncr();
-    throttledIncr();
-
-    expect(counter).to.eql(1);
-    setTimeout(function() {
-      expect(counter).to.eql(2);
-      done();
-    }, 64);
-  });
-
-  it("throttled functions return their value", function(done) {
-    var counter = 0;
-    var incr = function() {
-      return ++counter;
-    };
-    var throttledIncr = _.throttle(incr, 32);
-    var result = throttledIncr();
-    setTimeout(function() {
-      expect(result).to.eql(1);
-      expect(counter).to.eql(1);
-      done();
-    }, 64);
-  });
-
-  it("throttled functions called repeatedly should adhere to time limitations", function(done) {
-    var counter = 0;
-    var incr = function() {
-      return ++counter;
-    };
-    var throttledIncr = _.throttle(incr, 64);
-    var results = [];
-    var saveResult = function() {
-      results.push(throttledIncr());
-    };
-    saveResult();
-    saveResult();
-    setTimeout(saveResult, 32);
-    setTimeout(saveResult, 80);
-    setTimeout(saveResult, 96);
-    setTimeout(saveResult, 144);
-    setTimeout(function() {
-      expect(results[0]).to.eql(1);
-      expect(results[1]).to.eql(1);
-      expect(results[2]).to.eql(1);
-      expect(results[3]).to.eql(2);
-      expect(results[4]).to.eql(2);
-      expect(results[5]).to.eql(3);
-      done();
-    }, 192);
-  })
 });
